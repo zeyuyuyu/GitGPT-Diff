@@ -1,19 +1,50 @@
+import os
 import difflib
+import openai
 
-def generate_diff(file1, file2):
-    """Generate a unified diff between two text files."""
-    with open(file1, 'r') as f1, open(file2, 'r') as f2:
-        file1_lines = f1.readlines()
-        file2_lines = f2.readlines()
+openai.api_key = os.environ['OPENAI_API_KEY']
+
+def generate_code_diff(base_code, new_code):
+    """Generate an AI-powered code diff between two code snippets."""
+    prompt = f"""Generate a detailed code diff between the following two code snippets:
     
-    diff = difflib.unified_diff(file1_lines, file2_lines, fromfile=file1, tofile=file2)
-    return ''.join(diff)
+    Base code:
+    {base_code}
+    
+    New code:
+    {new_code}
+    
+    Provide the diff in the standard unified diff format, with clear explanations for each change."""
+    
+    response = openai.Completion.create(
+        engine="text-davinci-002",
+        prompt=prompt,
+        max_tokens=2048,
+        n=1,
+        stop=None,
+        temperature=0.7,
+    )
+    
+    return response.choices[0].text.strip()
+
+if __name__ == "__main__":
+    base_code = """import os
+import sys
 
 def main():
-    file1 = 'file1.txt'
-    file2 = 'file2.txt'
-    diff = generate_diff(file1, file2)
-    print(diff)
+    print("Hello, world!")
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    main()"""
+    new_code = """import os
+import sys
+
+def main():
+    print("Hello, GPT!")
+    print("This is a new feature.")
+
+if __name__ == "__main__":
+    main()"""
+    
+    diff = generate_code_diff(base_code, new_code)
+    print(diff)
