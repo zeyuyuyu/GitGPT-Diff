@@ -1,42 +1,19 @@
-import os
-import git
-import openai
-from typing import List, Dict
-from dataclasses import dataclass
+import difflib
 
-@dataclass
-class DiffAnalysis:
-    impact_score: float
-    suggested_changes: List[str]
-    security_concerns: List[Dict]
-    architectural_impact: Dict
+def generate_diff(file1, file2):
+    """Generate a unified diff between two text files."""
+    with open(file1, 'r') as f1, open(file2, 'r') as f2:
+        file1_lines = f1.readlines()
+        file2_lines = f2.readlines()
+    
+    diff = difflib.unified_diff(file1_lines, file2_lines, fromfile=file1, tofile=file2)
+    return ''.join(diff)
 
-class GitGPTDiff:
-    def __init__(self, repo_path: str, api_key: str):
-        self.repo = git.Repo(repo_path)
-        self.openai = openai
-        self.openai.api_key = api_key
+def main():
+    file1 = 'file1.txt'
+    file2 = 'file2.txt'
+    diff = generate_diff(file1, file2)
+    print(diff)
 
-    async def analyze_diff(self, commit_sha: str) -> DiffAnalysis:
-        diff = self.repo.git.diff(commit_sha)
-        
-        # Get AI analysis of changes
-        response = await self.openai.ChatCompletion.create(
-            model="gpt-6-turbo",
-            messages=[
-                {"role": "system", "content": "You are a code review expert."},
-                {"role": "user", "content": f"Analyze this diff:\n{diff}"}
-            ]
-        )
-        
-        # Process AI response and generate analysis
-        return DiffAnalysis(
-            impact_score=0.85,
-            suggested_changes=[],
-            security_concerns=[],
-            architectural_impact={}
-        )
-
-    def generate_report(self, analysis: DiffAnalysis) -> str:
-        # Generate detailed markdown report
-        pass
+if __name__ == '__main__':
+    main()
