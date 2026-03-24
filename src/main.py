@@ -1,82 +1,61 @@
 import os
-import sys
-import git
-from typing import List, Dict
+import openai
 
-class GitDiff:
-    def __init__(self, repo_path: str):
-        self.repo = git.Repo(repo_path)
+openai.api_key = os.environ.get('OPENAI_API_KEY')
 
-    def get_diff_with_context(self, commit_sha: str = None) -> Dict:
-        """Get git diff with additional context and summary"""
-        if commit_sha:
-            # Get diff between commit and its parent
-            diff = self.repo.commit(commit_sha).parents[0].diff(commit_sha)
-        else:
-            # Get working directory changes
-            diff = self.repo.index.diff(None)
+def generate_code(prompt):
+    response = openai.Completion.create(
+        engine='text-davinci-002',
+        prompt=prompt,
+        max_tokens=1024,
+        n=1,
+        stop=None,
+        temperature=0.7,
+    )
+    return response.choices[0].text.strip()
 
-        changes = {
-            'files_changed': [],
-            'total_additions': 0,
-            'total_deletions': 0,
-            'summary': ''
-        }
+def analyze_diff(old_code, new_code):
+    prompt = f"""Analyze the changes between the following two code snippets:
+Old code:
+{old_code}
 
-        for d in diff:
-            file_diff = {
-                'file': d.a_path,
-                'change_type': d.change_type,
-                'additions': d.diff.count(b'+'),
-                'deletions': d.diff.count(b'-'),
-                'content': d.diff.decode('utf-8')
-            }
-            changes['files_changed'].append(file_diff)
-            changes['total_additions'] += file_diff['additions']
-            changes['total_deletions'] += file_diff['deletions']
+New code: 
+{new_code}
 
-        # Generate summary
-        changes['summary'] = f"Changed {len(changes['files_changed'])} files with "\
-                           f"{changes['total_additions']} additions and "\
-                           f"{changes['total_deletions']} deletions"
+Provide a detailed summary of the key changes, including any new functionality, refactors, or bug fixes."""
 
-        return changes
-
-    def get_file_history(self, filepath: str, num_commits: int = 5) -> List[Dict]:
-        """Get commit history for a specific file"""
-        history = []
-        for commit in self.repo.iter_commits(paths=filepath, max_count=num_commits):
-            history.append({
-                'sha': commit.hexsha,
-                'author': commit.author.name,
-                'date': commit.committed_datetime.isoformat(),
-                'message': commit.message.strip()
-            })
-        return history
+    response = openai.Completion.create(
+        engine='text-davinci-002',
+        prompt=prompt,
+        max_tokens=1024,
+        n=1,
+        stop=None,
+        temperature=0.7,
+    )
+    return response.choices[0].text.strip()
 
 def main():
-    if len(sys.argv) < 2:
-        print("Please provide repository path")
-        sys.exit(1)
-
-    repo_path = sys.argv[1]
-    if not os.path.exists(repo_path):
-        print(f"Repository path {repo_path} does not exist")
-        sys.exit(1)
-
-    diff_tool = GitDiff(repo_path)
+    print("Welcome to GitGPT-Diff!")
+    print("Enter 'q' to quit.")
     
-    # Example usage
-    changes = diff_tool.get_diff_with_context()
-    print(f"\nDiff Summary:\n{changes['summary']}\n")
-    
-    for file_change in changes['files_changed']:
-        print(f"File: {file_change['file']}")
-        print(f"Type: {file_change['change_type']}")
-        print(f"Changes: +{file_change['additions']} -{file_change['deletions']}")
-        print("\nDiff Content:")
-        print(file_change['content'])
-        print("-" * 80)
+    while True:
+        user_input = input("Enter a prompt to generate new code: ")
+        if user_input.lower() == 'q':
+            break
+        new_code = generate_code(user_input)
+        print("\
+Generated code:\
+")
+        print(new_code)
+        
+        old_code = """# Previous version of the code
+        print('Hello, world!')
+        """
+        diff_analysis = analyze_diff(old_code, new_code)
+        print("\
+Diff analysis:\
+")
+        print(diff_analysis)
 
 if __name__ == "__main__":
     main()
